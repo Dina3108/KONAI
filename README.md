@@ -1,0 +1,1 @@
+﻿# KONE Technical Intelligence Platform
