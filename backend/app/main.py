@@ -22,6 +22,7 @@ from app.routers.maintenance_routers import router as maintenance_router
 from app.routers.cross_elevator_routers import router as cross_elevator_router
 from app.routers.model_operations_routers import router as model_operations_router
 from app.routers.reports_routers import router as reports_router
+from app.routers.auth_routers import router as auth_router
 
 app = FastAPI(
     title="KONE Technical Intelligence Platform API",
@@ -63,6 +64,7 @@ app.include_router(maintenance_router)
 app.include_router(cross_elevator_router)
 app.include_router(model_operations_router)
 app.include_router(reports_router)
+app.include_router(auth_router)
 # Home endpoint
 @app.get("/")
 def home():

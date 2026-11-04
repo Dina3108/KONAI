@@ -10,12 +10,18 @@ from app.schemas.elevator import (
     ElevatorUpdate,
     ElevatorResponse
 )
+from app.security import require_roles
+
 
 router = APIRouter(
     prefix="/api/v1/elevators",
     tags=["Elevators"]
 )
 
+
+# -------------------------------------------------
+# 1. CREATE ELEVATOR - ADMINISTRATOR ONLY
+# -------------------------------------------------
 
 @router.post(
     "",
@@ -24,7 +30,8 @@ router = APIRouter(
 )
 def create_elevator(
     elevator_data: ElevatorCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles("Administrator"))
 ):
     building = db.query(Building).filter(
         Building.id == elevator_data.building_id
@@ -53,6 +60,7 @@ def create_elevator(
     try:
         db.commit()
         db.refresh(elevator)
+
     except IntegrityError:
         db.rollback()
         raise HTTPException(
@@ -63,12 +71,24 @@ def create_elevator(
     return elevator
 
 
+# -------------------------------------------------
+# 2. GET ALL ELEVATORS - ALL AUTHENTICATED ROLES
+# -------------------------------------------------
+
 @router.get("", response_model=list[ElevatorResponse])
 def get_elevators(
     skip: int = 0,
     limit: int = 100,
     building_id: int | None = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(
+        require_roles(
+            "Administrator",
+            "Technical Engineer",
+            "Regional Manager",
+            "Viewer"
+        )
+    )
 ):
     if skip < 0 or limit < 1 or limit > 500:
         raise HTTPException(
@@ -91,10 +111,22 @@ def get_elevators(
     )
 
 
+# -------------------------------------------------
+# 3. GET ELEVATOR BY ID - ALL AUTHENTICATED ROLES
+# -------------------------------------------------
+
 @router.get("/{elevator_id}", response_model=ElevatorResponse)
 def get_elevator(
     elevator_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(
+        require_roles(
+            "Administrator",
+            "Technical Engineer",
+            "Regional Manager",
+            "Viewer"
+        )
+    )
 ):
     elevator = db.query(Elevator).filter(
         Elevator.id == elevator_id
@@ -109,11 +141,21 @@ def get_elevator(
     return elevator
 
 
+# -------------------------------------------------
+# 4. UPDATE ELEVATOR - ADMINISTRATOR / ENGINEER
+# -------------------------------------------------
+
 @router.put("/{elevator_id}", response_model=ElevatorResponse)
 def update_elevator(
     elevator_id: int,
     elevator_data: ElevatorUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(
+        require_roles(
+            "Administrator",
+            "Technical Engineer"
+        )
+    )
 ):
     elevator = db.query(Elevator).filter(
         Elevator.id == elevator_id
@@ -147,6 +189,7 @@ def update_elevator(
     try:
         db.commit()
         db.refresh(elevator)
+
     except IntegrityError:
         db.rollback()
         raise HTTPException(
@@ -157,10 +200,15 @@ def update_elevator(
     return elevator
 
 
+# -------------------------------------------------
+# 5. DELETE ELEVATOR - ADMINISTRATOR ONLY
+# -------------------------------------------------
+
 @router.delete("/{elevator_id}")
 def delete_elevator(
     elevator_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles("Administrator"))
 ):
     elevator = db.query(Elevator).filter(
         Elevator.id == elevator_id
