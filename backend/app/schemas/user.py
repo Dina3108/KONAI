@@ -12,6 +12,15 @@ UserRole = Literal[
 ]
 
 
+# Used by public self-registration.
+# Notice that users cannot submit their own role.
+class UserRegister(BaseModel):
+    full_name: str = Field(min_length=2, max_length=150)
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=72)
+
+
+# Used by Administrator to create accounts with assigned roles.
 class UserCreate(BaseModel):
     full_name: str = Field(min_length=2, max_length=150)
     email: EmailStr
@@ -34,3 +43,7 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+class UserUpdate(BaseModel):
+    role: UserRole | None = None
+    is_active: bool | None = None

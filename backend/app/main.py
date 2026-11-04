@@ -23,6 +23,8 @@ from app.routers.cross_elevator_routers import router as cross_elevator_router
 from app.routers.model_operations_routers import router as model_operations_router
 from app.routers.reports_routers import router as reports_router
 from app.routers.auth_routers import router as auth_router
+from app.models.audit_log import AuditLog
+from app.routers.audit_routers import router as audit_router
 
 app = FastAPI(
     title="KONE Technical Intelligence Platform API",
@@ -36,11 +38,13 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "http://127.0.0.1:5173"
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
     ],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
 
@@ -65,6 +69,8 @@ app.include_router(cross_elevator_router)
 app.include_router(model_operations_router)
 app.include_router(reports_router)
 app.include_router(auth_router)
+app.include_router(audit_router)
+
 # Home endpoint
 @app.get("/")
 def home():

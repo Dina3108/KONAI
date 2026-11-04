@@ -10,3 +10,4 @@ from app.models.incident import Incident
 from app.models.maintenance import Maintenance
 from app.models.model_registry import ModelRegistry
 from app.models.user import User
+from app.models.audit_log import AuditLog
