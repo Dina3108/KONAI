@@ -1,3 +1,4 @@
+
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,12 +16,26 @@ from app.schemas.maintenance import (
     MaintenanceResponse
 )
 
+from app.security import require_roles
+
 
 router = APIRouter(
     prefix="/api/v1/maintenance",
     tags=["Maintenance Engineering"]
 )
 
+
+READ_ROLES = (
+    "Administrator",
+    "Technical Engineer",
+    "Regional Manager",
+    "Viewer"
+)
+
+MAINTENANCE_MANAGEMENT_ROLES = (
+    "Administrator",
+    "Technical Engineer"
+)
 
 ALLOWED_PRIORITIES = ["Low", "Medium", "High", "Critical"]
 
@@ -34,7 +49,15 @@ ALLOWED_STATUSES = [
 
 
 # 1. Create a maintenance work order
-@router.post("", response_model=MaintenanceResponse, status_code=201)
+# Administrator and Technical Engineer
+@router.post(
+    "",
+    response_model=MaintenanceResponse,
+    status_code=201,
+    dependencies=[
+        Depends(require_roles(*MAINTENANCE_MANAGEMENT_ROLES))
+    ]
+)
 def create_maintenance(
     data: MaintenanceCreate,
     db: Session = Depends(get_db)
@@ -101,7 +124,12 @@ def create_maintenance(
 
 
 # 2. Retrieve work orders with optional filters
-@router.get("", response_model=list[MaintenanceResponse])
+# All authenticated roles
+@router.get(
+    "",
+    response_model=list[MaintenanceResponse],
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def get_maintenance_records(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
@@ -156,7 +184,12 @@ def get_maintenance_records(
 
 
 # 3. Retrieve one work order
-@router.get("/{maintenance_id}", response_model=MaintenanceResponse)
+# All authenticated roles
+@router.get(
+    "/{maintenance_id}",
+    response_model=MaintenanceResponse,
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def get_maintenance(
     maintenance_id: int,
     db: Session = Depends(get_db)
@@ -176,7 +209,14 @@ def get_maintenance(
 
 
 # 4. Update work order and maintenance progress
-@router.patch("/{maintenance_id}", response_model=MaintenanceResponse)
+# Administrator and Technical Engineer
+@router.patch(
+    "/{maintenance_id}",
+    response_model=MaintenanceResponse,
+    dependencies=[
+        Depends(require_roles(*MAINTENANCE_MANAGEMENT_ROLES))
+    ]
+)
 def update_maintenance(
     maintenance_id: int,
     data: MaintenanceUpdate,

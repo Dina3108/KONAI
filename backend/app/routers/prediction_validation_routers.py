@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -8,6 +9,7 @@ from app.schemas.prediction_validation import (
     PredictionValidationCreate,
     PredictionValidationResponse
 )
+from app.security import require_roles
 
 
 router = APIRouter(
@@ -15,6 +17,13 @@ router = APIRouter(
     tags=["Prediction Validation"]
 )
 
+
+READ_ROLES = (
+    "Administrator",
+    "Technical Engineer",
+    "Regional Manager",
+    "Viewer"
+)
 
 ALLOWED_RESULTS = [
     "Confirmed",
@@ -24,10 +33,14 @@ ALLOWED_RESULTS = [
 
 
 # 1. Create a validation record
+# Administrator and Technical Engineer only
 @router.post(
     "",
     response_model=PredictionValidationResponse,
-    status_code=201
+    status_code=201,
+    dependencies=[
+        Depends(require_roles("Administrator", "Technical Engineer"))
+    ]
 )
 def create_validation(
     data: PredictionValidationCreate,
@@ -71,9 +84,11 @@ def create_validation(
 
 
 # 2. Retrieve all validation records
+# All authenticated roles
 @router.get(
     "",
-    response_model=list[PredictionValidationResponse]
+    response_model=list[PredictionValidationResponse],
+    dependencies=[Depends(require_roles(*READ_ROLES))]
 )
 def get_validations(
     skip: int = Query(0, ge=0),
@@ -111,9 +126,11 @@ def get_validations(
 
 
 # 3. Retrieve one validation record
+# All authenticated roles
 @router.get(
     "/{validation_id}",
-    response_model=PredictionValidationResponse
+    response_model=PredictionValidationResponse,
+    dependencies=[Depends(require_roles(*READ_ROLES))]
 )
 def get_validation(
     validation_id: int,
@@ -134,9 +151,11 @@ def get_validation(
 
 
 # 4. Retrieve validation history for one prediction
+# All authenticated roles
 @router.get(
     "/prediction/{prediction_id}",
-    response_model=list[PredictionValidationResponse]
+    response_model=list[PredictionValidationResponse],
+    dependencies=[Depends(require_roles(*READ_ROLES))]
 )
 def get_prediction_validation_history(
     prediction_id: int,

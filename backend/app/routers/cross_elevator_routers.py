@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -11,6 +12,8 @@ from app.models.device import Device
 from app.models.incident import Incident
 from app.models.maintenance import Maintenance
 
+from app.security import require_roles
+
 
 router = APIRouter(
     prefix="/api/v1/cross-elevator",
@@ -18,8 +21,20 @@ router = APIRouter(
 )
 
 
+READ_ROLES = (
+    "Administrator",
+    "Technical Engineer",
+    "Regional Manager",
+    "Viewer"
+)
+
+
 # 1. Fleet-wide intelligence summary
-@router.get("/fleet-summary")
+# All authenticated roles
+@router.get(
+    "/fleet-summary",
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def get_fleet_summary(db: Session = Depends(get_db)):
 
     total_buildings = db.query(func.count(Building.id)).scalar() or 0
@@ -59,7 +74,11 @@ def get_fleet_summary(db: Session = Depends(get_db)):
 
 
 # 2. Compare elevators across the fleet
-@router.get("/elevator-comparison")
+# All authenticated roles
+@router.get(
+    "/elevator-comparison",
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def compare_elevators(
     building_id: int | None = Query(None, gt=0),
     limit: int = Query(100, ge=1, le=500),
@@ -141,7 +160,11 @@ def compare_elevators(
 
 
 # 3. Compare buildings
-@router.get("/building-comparison")
+# All authenticated roles
+@router.get(
+    "/building-comparison",
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def compare_buildings(db: Session = Depends(get_db)):
 
     buildings = db.query(Building).order_by(Building.id).all()
@@ -187,7 +210,11 @@ def compare_buildings(db: Session = Depends(get_db)):
 
 
 # 4. Compare elevator models
-@router.get("/model-comparison")
+# All authenticated roles
+@router.get(
+    "/model-comparison",
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def compare_elevator_models(db: Session = Depends(get_db)):
 
     models = (
@@ -234,7 +261,11 @@ def compare_elevator_models(db: Session = Depends(get_db)):
 
 
 # 5. Compare device connectivity by elevator
-@router.get("/device-connectivity")
+# All authenticated roles
+@router.get(
+    "/device-connectivity",
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def compare_device_connectivity(db: Session = Depends(get_db)):
 
     elevators = db.query(Elevator).order_by(Elevator.id).all()

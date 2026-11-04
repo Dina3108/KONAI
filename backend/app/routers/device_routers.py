@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -6,6 +7,7 @@ from app.database import get_db
 from app.models.device import Device
 from app.models.elevator import Elevator
 from app.schemas.device import DeviceCreate, DeviceUpdate, DeviceResponse
+from app.security import require_roles
 
 
 router = APIRouter(
@@ -14,8 +16,21 @@ router = APIRouter(
 )
 
 
-# 1. Register a hardware device
-@router.post("", response_model=DeviceResponse, status_code=201)
+READ_ROLES = (
+    "Administrator",
+    "Technical Engineer",
+    "Regional Manager",
+    "Viewer"
+)
+
+
+# 1. Register a hardware device - Administrator only
+@router.post(
+    "",
+    response_model=DeviceResponse,
+    status_code=201,
+    dependencies=[Depends(require_roles("Administrator"))]
+)
 def create_device(data: DeviceCreate, db: Session = Depends(get_db)):
 
     if data.elevator_id is not None:
@@ -56,8 +71,12 @@ def create_device(data: DeviceCreate, db: Session = Depends(get_db)):
     return device
 
 
-# 2. List devices with optional filters
-@router.get("", response_model=list[DeviceResponse])
+# 2. List devices - All authenticated roles
+@router.get(
+    "",
+    response_model=list[DeviceResponse],
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def get_devices(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
@@ -85,8 +104,12 @@ def get_devices(
     )
 
 
-# 3. Retrieve one device
-@router.get("/{device_id}", response_model=DeviceResponse)
+# 3. Retrieve one device - All authenticated roles
+@router.get(
+    "/{device_id}",
+    response_model=DeviceResponse,
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def get_device(device_id: int, db: Session = Depends(get_db)):
 
     device = db.query(Device).filter(
@@ -102,8 +125,14 @@ def get_device(device_id: int, db: Session = Depends(get_db)):
     return device
 
 
-# 4. Update device information and hardware readings
-@router.put("/{device_id}", response_model=DeviceResponse)
+# 4. Update device - Administrator and Technical Engineer
+@router.put(
+    "/{device_id}",
+    response_model=DeviceResponse,
+    dependencies=[
+        Depends(require_roles("Administrator", "Technical Engineer"))
+    ]
+)
 def update_device(
     device_id: int,
     data: DeviceUpdate,
@@ -149,8 +178,11 @@ def update_device(
     return device
 
 
-# 5. Deactivate a device instead of permanently deleting it
-@router.delete("/{device_id}")
+# 5. Deactivate device - Administrator only
+@router.delete(
+    "/{device_id}",
+    dependencies=[Depends(require_roles("Administrator"))]
+)
 def deactivate_device(
     device_id: int,
     db: Session = Depends(get_db)

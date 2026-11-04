@@ -83,6 +83,9 @@ def get_current_user(
 
         user_id = int(user_id)
 
+        if user_id <= 0:
+            raise credentials_error
+
     except (JWTError, ValueError, TypeError):
         raise credentials_error
 

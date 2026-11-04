@@ -1,3 +1,4 @@
+
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -13,12 +14,26 @@ from app.schemas.model_registry import (
     ModelRegistryResponse
 )
 
+from app.security import require_roles
+
 
 router = APIRouter(
     prefix="/api/v1/model-operations",
     tags=["Model Operations"]
 )
 
+
+READ_ROLES = (
+    "Administrator",
+    "Technical Engineer",
+    "Regional Manager",
+    "Viewer"
+)
+
+MODEL_MANAGEMENT_ROLES = (
+    "Administrator",
+    "Technical Engineer"
+)
 
 ALLOWED_STATUSES = [
     "Registered",
@@ -30,10 +45,14 @@ ALLOWED_STATUSES = [
 
 
 # 1. Register a model version
+# Administrator and Technical Engineer
 @router.post(
     "",
     response_model=ModelRegistryResponse,
-    status_code=201
+    status_code=201,
+    dependencies=[
+        Depends(require_roles(*MODEL_MANAGEMENT_ROLES))
+    ]
 )
 def register_model(
     data: ModelRegistryCreate,
@@ -78,9 +97,11 @@ def register_model(
 
 
 # 2. Retrieve registered models with filters
+# All authenticated roles
 @router.get(
     "",
-    response_model=list[ModelRegistryResponse]
+    response_model=list[ModelRegistryResponse],
+    dependencies=[Depends(require_roles(*READ_ROLES))]
 )
 def get_models(
     skip: int = Query(0, ge=0),
@@ -118,9 +139,11 @@ def get_models(
 
 
 # 3. Retrieve one registered model
+# All authenticated roles
 @router.get(
     "/{model_id}",
-    response_model=ModelRegistryResponse
+    response_model=ModelRegistryResponse,
+    dependencies=[Depends(require_roles(*READ_ROLES))]
 )
 def get_model(
     model_id: int,
@@ -141,9 +164,13 @@ def get_model(
 
 
 # 4. Update model information, metrics and lifecycle
+# Administrator and Technical Engineer
 @router.patch(
     "/{model_id}",
-    response_model=ModelRegistryResponse
+    response_model=ModelRegistryResponse,
+    dependencies=[
+        Depends(require_roles(*MODEL_MANAGEMENT_ROLES))
+    ]
 )
 def update_model(
     model_id: int,

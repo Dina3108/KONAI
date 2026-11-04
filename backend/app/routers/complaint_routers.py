@@ -1,3 +1,4 @@
+
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,6 +13,7 @@ from app.schemas.complaint import (
     ComplaintUpdate,
     ComplaintResponse
 )
+from app.security import require_roles
 
 
 router = APIRouter(
@@ -19,6 +21,13 @@ router = APIRouter(
     tags=["Complaints & Compliance"]
 )
 
+
+READ_ROLES = (
+    "Administrator",
+    "Technical Engineer",
+    "Regional Manager",
+    "Viewer"
+)
 
 ALLOWED_PRIORITIES = ["Low", "Medium", "High", "Critical"]
 
@@ -31,7 +40,21 @@ ALLOWED_STATUSES = [
 
 
 # 1. Register a complaint
-@router.post("", response_model=ComplaintResponse, status_code=201)
+# Administrator, Technical Engineer and Regional Manager
+@router.post(
+    "",
+    response_model=ComplaintResponse,
+    status_code=201,
+    dependencies=[
+        Depends(
+            require_roles(
+                "Administrator",
+                "Technical Engineer",
+                "Regional Manager"
+            )
+        )
+    ]
+)
 def create_complaint(
     data: ComplaintCreate,
     db: Session = Depends(get_db)
@@ -80,7 +103,12 @@ def create_complaint(
 
 
 # 2. Retrieve complaints with filters
-@router.get("", response_model=list[ComplaintResponse])
+# All authenticated roles
+@router.get(
+    "",
+    response_model=list[ComplaintResponse],
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def get_complaints(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
@@ -135,7 +163,12 @@ def get_complaints(
 
 
 # 3. Retrieve one complaint
-@router.get("/{complaint_id}", response_model=ComplaintResponse)
+# All authenticated roles
+@router.get(
+    "/{complaint_id}",
+    response_model=ComplaintResponse,
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def get_complaint(
     complaint_id: int,
     db: Session = Depends(get_db)
@@ -155,7 +188,20 @@ def get_complaint(
 
 
 # 4. Update complaint status and resolution details
-@router.patch("/{complaint_id}", response_model=ComplaintResponse)
+# Administrator, Technical Engineer and Regional Manager
+@router.patch(
+    "/{complaint_id}",
+    response_model=ComplaintResponse,
+    dependencies=[
+        Depends(
+            require_roles(
+                "Administrator",
+                "Technical Engineer",
+                "Regional Manager"
+            )
+        )
+    ]
+)
 def update_complaint(
     complaint_id: int,
     data: ComplaintUpdate,

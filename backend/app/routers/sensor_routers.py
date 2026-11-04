@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -12,6 +11,8 @@ from app.schemas.sensor import (
     SensorUpdate,
     SensorResponse
 )
+from app.security import require_roles
+
 
 router = APIRouter(
     prefix="/api/v1/sensors",
@@ -19,10 +20,15 @@ router = APIRouter(
 )
 
 
+# -------------------------------------------------
+# 1. CREATE SENSOR - ADMINISTRATOR ONLY
+# -------------------------------------------------
+
 @router.post("", response_model=SensorResponse, status_code=201)
 def create_sensor(
     data: SensorCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles("Administrator"))
 ):
     elevator = db.query(Elevator).filter(
         Elevator.id == data.elevator_id
@@ -60,12 +66,24 @@ def create_sensor(
     return sensor
 
 
+# -------------------------------------------------
+# 2. GET ALL SENSORS - ALL AUTHENTICATED ROLES
+# -------------------------------------------------
+
 @router.get("", response_model=list[SensorResponse])
 def get_sensors(
     skip: int = 0,
     limit: int = 100,
     elevator_id: int | None = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(
+        require_roles(
+            "Administrator",
+            "Technical Engineer",
+            "Regional Manager",
+            "Viewer"
+        )
+    )
 ):
     if skip < 0 or limit < 1 or limit > 500:
         raise HTTPException(
@@ -76,7 +94,9 @@ def get_sensors(
     query = db.query(Sensor)
 
     if elevator_id is not None:
-        query = query.filter(Sensor.elevator_id == elevator_id)
+        query = query.filter(
+            Sensor.elevator_id == elevator_id
+        )
 
     return (
         query.order_by(Sensor.id)
@@ -86,10 +106,22 @@ def get_sensors(
     )
 
 
+# -------------------------------------------------
+# 3. GET SENSOR BY ID - ALL AUTHENTICATED ROLES
+# -------------------------------------------------
+
 @router.get("/{sensor_id}", response_model=SensorResponse)
 def get_sensor(
     sensor_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(
+        require_roles(
+            "Administrator",
+            "Technical Engineer",
+            "Regional Manager",
+            "Viewer"
+        )
+    )
 ):
     sensor = db.query(Sensor).filter(
         Sensor.id == sensor_id
@@ -104,11 +136,21 @@ def get_sensor(
     return sensor
 
 
+# -------------------------------------------------
+# 4. UPDATE SENSOR - ADMINISTRATOR / ENGINEER
+# -------------------------------------------------
+
 @router.put("/{sensor_id}", response_model=SensorResponse)
 def update_sensor(
     sensor_id: int,
     data: SensorUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(
+        require_roles(
+            "Administrator",
+            "Technical Engineer"
+        )
+    )
 ):
     sensor = db.query(Sensor).filter(
         Sensor.id == sensor_id
@@ -141,10 +183,15 @@ def update_sensor(
     return sensor
 
 
+# -------------------------------------------------
+# 5. DELETE SENSOR - ADMINISTRATOR ONLY
+# -------------------------------------------------
+
 @router.delete("/{sensor_id}")
 def delete_sensor(
     sensor_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles("Administrator"))
 ):
     sensor = db.query(Sensor).filter(
         Sensor.id == sensor_id

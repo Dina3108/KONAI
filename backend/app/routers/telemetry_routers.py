@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.telemetry import Telemetry
 from app.models.sensor import Sensor
-from app.schemas.telemetry import TelemetryCreate, TelemetryResponse
+from app.schemas.telemetry import (
+    TelemetryCreate,
+    TelemetryResponse
+)
+from app.security import require_roles
 
 
 router = APIRouter(
@@ -15,11 +19,25 @@ router = APIRouter(
 )
 
 
-# 1. Submit a new sensor reading
+READ_ROLES = [
+    "Administrator",
+    "Technical Engineer",
+    "Regional Manager",
+    "Viewer"
+]
+
+
+# -------------------------------------------------
+# 1. SUBMIT SENSOR READING - ADMINISTRATOR / ENGINEER
+# -------------------------------------------------
+
 @router.post("", response_model=TelemetryResponse, status_code=201)
 def create_telemetry(
     data: TelemetryCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(
+        require_roles("Administrator", "Technical Engineer")
+    )
 ):
     sensor = db.query(Sensor).filter(
         Sensor.id == data.sensor_id
@@ -52,7 +70,10 @@ def create_telemetry(
     return telemetry
 
 
-# 2. Retrieve telemetry readings with optional filters
+# -------------------------------------------------
+# 2. GET ALL TELEMETRY - ALL AUTHENTICATED ROLES
+# -------------------------------------------------
+
 @router.get("", response_model=list[TelemetryResponse])
 def get_telemetry(
     skip: int = Query(0, ge=0),
@@ -60,7 +81,8 @@ def get_telemetry(
     sensor_id: int | None = Query(None, gt=0),
     start_time: datetime | None = None,
     end_time: datetime | None = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles(*READ_ROLES))
 ):
     if start_time and end_time and start_time > end_time:
         raise HTTPException(
@@ -71,7 +93,9 @@ def get_telemetry(
     query = db.query(Telemetry)
 
     if sensor_id is not None:
-        query = query.filter(Telemetry.sensor_id == sensor_id)
+        query = query.filter(
+            Telemetry.sensor_id == sensor_id
+        )
 
     if start_time is not None:
         query = query.filter(
@@ -92,13 +116,20 @@ def get_telemetry(
     )
 
 
-# 3. Retrieve readings belonging to one sensor
-@router.get("/sensor/{sensor_id}", response_model=list[TelemetryResponse])
+# -------------------------------------------------
+# 3. GET SENSOR TELEMETRY HISTORY - ALL ROLES
+# -------------------------------------------------
+
+@router.get(
+    "/sensor/{sensor_id}",
+    response_model=list[TelemetryResponse]
+)
 def get_sensor_telemetry(
     sensor_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles(*READ_ROLES))
 ):
     sensor = db.query(Sensor).filter(
         Sensor.id == sensor_id
@@ -120,11 +151,18 @@ def get_sensor_telemetry(
     )
 
 
-# 4. Retrieve the latest reading from a sensor
-@router.get("/sensor/{sensor_id}/latest", response_model=TelemetryResponse)
+# -------------------------------------------------
+# 4. GET LATEST SENSOR READING - ALL ROLES
+# -------------------------------------------------
+
+@router.get(
+    "/sensor/{sensor_id}/latest",
+    response_model=TelemetryResponse
+)
 def get_latest_telemetry(
     sensor_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles(*READ_ROLES))
 ):
     sensor = db.query(Sensor).filter(
         Sensor.id == sensor_id

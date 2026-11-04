@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -14,6 +15,8 @@ from app.models.complaint import Complaint
 from app.models.incident import Incident
 from app.models.maintenance import Maintenance
 
+from app.security import require_roles
+
 
 router = APIRouter(
     prefix="/api/v1/reports",
@@ -21,8 +24,20 @@ router = APIRouter(
 )
 
 
+READ_ROLES = (
+    "Administrator",
+    "Technical Engineer",
+    "Regional Manager",
+    "Viewer"
+)
+
+
 # 1. Fleet Performance Summary
-@router.get("/fleet-summary")
+# All authenticated roles
+@router.get(
+    "/fleet-summary",
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def fleet_performance_summary(db: Session = Depends(get_db)):
 
     total_buildings = db.query(func.count(Building.id)).scalar() or 0
@@ -82,7 +97,11 @@ def fleet_performance_summary(db: Session = Depends(get_db)):
 
 
 # 2. Elevator Health Report
-@router.get("/elevator-health")
+# All authenticated roles
+@router.get(
+    "/elevator-health",
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def elevator_health_report(
     building_id: int | None = Query(None, gt=0),
     db: Session = Depends(get_db)
@@ -157,7 +176,11 @@ def elevator_health_report(
 
 
 # 3. Incident Analysis Report
-@router.get("/incident-analysis")
+# All authenticated roles
+@router.get(
+    "/incident-analysis",
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def incident_analysis_report(db: Session = Depends(get_db)):
 
     total = db.query(
@@ -210,7 +233,11 @@ def incident_analysis_report(db: Session = Depends(get_db)):
 
 
 # 4. Maintenance Performance Report
-@router.get("/maintenance-performance")
+# All authenticated roles
+@router.get(
+    "/maintenance-performance",
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def maintenance_performance_report(db: Session = Depends(get_db)):
 
     total = db.query(
@@ -278,7 +305,11 @@ def maintenance_performance_report(db: Session = Depends(get_db)):
 
 
 # 5. Device Connectivity Report
-@router.get("/device-connectivity")
+# All authenticated roles
+@router.get(
+    "/device-connectivity",
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def device_connectivity_report(db: Session = Depends(get_db)):
 
     active_devices = db.query(Device).filter(

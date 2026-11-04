@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -10,6 +11,7 @@ from app.schemas.prediction import (
     PredictionStatusUpdate,
     PredictionResponse
 )
+from app.security import require_roles
 
 
 router = APIRouter(
@@ -18,11 +20,22 @@ router = APIRouter(
 )
 
 
-# 1. Store a prediction
+READ_ROLES = (
+    "Administrator",
+    "Technical Engineer",
+    "Regional Manager",
+    "Viewer"
+)
+
+
+# 1. Store a prediction - Administrator and Technical Engineer
 @router.post(
     "",
     response_model=PredictionResponse,
-    status_code=201
+    status_code=201,
+    dependencies=[
+        Depends(require_roles("Administrator", "Technical Engineer"))
+    ]
 )
 def create_prediction(
     data: PredictionCreate,
@@ -56,8 +69,12 @@ def create_prediction(
     return prediction
 
 
-# 2. Retrieve predictions with optional filters
-@router.get("", response_model=list[PredictionResponse])
+# 2. Retrieve predictions - All authenticated roles
+@router.get(
+    "",
+    response_model=list[PredictionResponse],
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def get_predictions(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
@@ -93,8 +110,12 @@ def get_predictions(
     )
 
 
-# 3. Retrieve a specific prediction
-@router.get("/{prediction_id}", response_model=PredictionResponse)
+# 3. Retrieve a specific prediction - All authenticated roles
+@router.get(
+    "/{prediction_id}",
+    response_model=PredictionResponse,
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def get_prediction(
     prediction_id: int,
     db: Session = Depends(get_db)
@@ -114,9 +135,13 @@ def get_prediction(
 
 
 # 4. Update prediction investigation status
+# Administrator and Technical Engineer only
 @router.patch(
     "/{prediction_id}/status",
-    response_model=PredictionResponse
+    response_model=PredictionResponse,
+    dependencies=[
+        Depends(require_roles("Administrator", "Technical Engineer"))
+    ]
 )
 def update_prediction_status(
     prediction_id: int,

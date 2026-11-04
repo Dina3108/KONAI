@@ -1,3 +1,4 @@
+
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,12 +16,27 @@ from app.schemas.incident import (
     IncidentResponse
 )
 
+from app.security import require_roles
+
 
 router = APIRouter(
     prefix="/api/v1/incidents",
     tags=["Incidents & Investigation"]
 )
 
+
+READ_ROLES = (
+    "Administrator",
+    "Technical Engineer",
+    "Regional Manager",
+    "Viewer"
+)
+
+INCIDENT_MANAGEMENT_ROLES = (
+    "Administrator",
+    "Technical Engineer",
+    "Regional Manager"
+)
 
 ALLOWED_SEVERITIES = ["Low", "Medium", "High", "Critical"]
 
@@ -33,7 +49,15 @@ ALLOWED_STATUSES = [
 
 
 # 1. Create an incident
-@router.post("", response_model=IncidentResponse, status_code=201)
+# Administrator, Technical Engineer and Regional Manager
+@router.post(
+    "",
+    response_model=IncidentResponse,
+    status_code=201,
+    dependencies=[
+        Depends(require_roles(*INCIDENT_MANAGEMENT_ROLES))
+    ]
+)
 def create_incident(
     data: IncidentCreate,
     db: Session = Depends(get_db)
@@ -99,7 +123,12 @@ def create_incident(
 
 
 # 2. Retrieve incidents with optional filters
-@router.get("", response_model=list[IncidentResponse])
+# All authenticated roles
+@router.get(
+    "",
+    response_model=list[IncidentResponse],
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def get_incidents(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
@@ -148,7 +177,12 @@ def get_incidents(
 
 
 # 3. Retrieve one incident
-@router.get("/{incident_id}", response_model=IncidentResponse)
+# All authenticated roles
+@router.get(
+    "/{incident_id}",
+    response_model=IncidentResponse,
+    dependencies=[Depends(require_roles(*READ_ROLES))]
+)
 def get_incident(
     incident_id: int,
     db: Session = Depends(get_db)
@@ -168,7 +202,14 @@ def get_incident(
 
 
 # 4. Update investigation and resolution details
-@router.patch("/{incident_id}", response_model=IncidentResponse)
+# Administrator, Technical Engineer and Regional Manager
+@router.patch(
+    "/{incident_id}",
+    response_model=IncidentResponse,
+    dependencies=[
+        Depends(require_roles(*INCIDENT_MANAGEMENT_ROLES))
+    ]
+)
 def update_incident(
     incident_id: int,
     data: IncidentUpdate,
