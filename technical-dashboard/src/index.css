@@ -4216,3 +4216,577 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 }
+
+
+
+/* =====================================
+   KONE LOGIN & AUTHENTICATION
+   Appended without changing dashboard styles
+===================================== */
+
+.kone-login-page {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  padding: 34px clamp(22px, 6vw, 88px) 24px;
+  color: #071B49;
+  background:
+    radial-gradient(circle at 82% 18%, rgba(0, 102, 204, .09), transparent 28%),
+    linear-gradient(135deg, #F7FAFE 0%, #EEF4FB 100%);
+  font-family: 'DM Sans', Arial, sans-serif;
+}
+
+.kone-login-page::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 7px;
+  background: #0055B8;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: fit-content;
+  position: relative;
+  z-index: 1;
+}
+
+.login-brand-mark {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: #0055B8;
+  color: #FFFFFF;
+  font: 800 29px 'Manrope', sans-serif;
+  box-shadow: 0 5px 14px rgba(0, 85, 184, .18);
+}
+
+.login-brand > div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.login-brand strong {
+  color: #071B49;
+  font: 800 21px 'Manrope', sans-serif;
+  letter-spacing: 1.4px;
+}
+
+.login-brand span {
+  color: #64748B;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.45px;
+}
+
+.login-content {
+  width: 100%;
+  max-width: 470px;
+  margin: auto;
+  padding: 48px 0;
+}
+
+.login-card {
+  padding: 38px 40px 32px;
+  background: rgba(255, 255, 255, .96);
+  border: 1px solid #E2E8F0;
+  border-radius: 9px;
+  box-shadow: 0 18px 55px rgba(16, 42, 86, .09);
+}
+
+.login-eyebrow {
+  margin-bottom: 13px;
+  color: #0066CC;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.35px;
+}
+
+.login-card h1 {
+  margin: 0;
+  color: #071B49;
+  font: 800 32px 'Manrope', sans-serif;
+  letter-spacing: -.8px;
+}
+
+.login-description {
+  margin: 12px 0 28px;
+  color: #64748B;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.login-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.login-field label {
+  color: #102A56;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.login-field input {
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 13px;
+  border: 1px solid #CBD5E1;
+  border-radius: 5px;
+  outline: none;
+  background: #FFFFFF;
+  color: #102A56;
+  font: 12px 'DM Sans', sans-serif;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.login-field input::placeholder {
+  color: #A0AEC0;
+}
+
+.login-field input:focus {
+  border-color: #007BFF;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, .11);
+}
+
+.login-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 11px 12px;
+  border: 1px solid #F1D1CE;
+  border-radius: 5px;
+  background: #FFF4F3;
+  color: #A6423B;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.login-error svg {
+  flex-shrink: 0;
+}
+
+.login-submit {
+  width: 100%;
+  min-height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 3px;
+  padding: 11px 16px;
+  border: 1px solid #0055B8;
+  border-radius: 5px;
+  background: #0055B8;
+  color: #FFFFFF;
+  font: 600 12px 'DM Sans', sans-serif;
+  transition: background .15s ease, transform .15s ease;
+}
+
+.login-submit:hover:not(:disabled) {
+  background: #0066CC;
+  transform: translateY(-1px);
+}
+
+.login-submit:disabled {
+  opacity: .65;
+  cursor: wait;
+}
+
+.login-security {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 23px;
+  padding-top: 18px;
+  border-top: 1px solid #EDF3FA;
+  color: #64748B;
+  font-size: 10px;
+}
+
+.login-security svg {
+  color: #27866A;
+}
+
+.login-footer {
+  margin: 22px 0 0;
+  color: #94A3B8;
+  font-size: 10px;
+  text-align: center;
+}
+
+.auth-loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  background: #F5F7FA;
+  color: #53677F;
+  font-size: 12px;
+}
+
+.auth-spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid #DCE8F5;
+  border-top-color: #0055B8;
+  border-radius: 50%;
+  animation: kone-auth-spin .8s linear infinite;
+}
+
+@keyframes kone-auth-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 560px) {
+  .kone-login-page {
+    padding: 27px 17px 18px;
+  }
+
+  .login-content {
+    max-width: 100%;
+    padding: 35px 0;
+  }
+
+  .login-card {
+    padding: 29px 22px 25px;
+  }
+
+  .login-card h1 {
+    font-size: 27px;
+  }
+
+  .login-brand-mark {
+    width: 41px;
+    height: 41px;
+    font-size: 25px;
+  }
+}
+
+/* =====================================
+   SIGN UP / SIGN IN TABS
+===================================== */
+
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 5px;
+  margin: 20px 0 24px;
+  background: #F1F5F9;
+  border-radius: 6px;
+}
+
+.auth-tabs button {
+  flex: 1;
+  border: 0;
+  padding: 11px;
+  border-radius: 4px;
+  background: transparent;
+  color: #64748B;
+  font: 600 12px 'DM Sans', sans-serif;
+  transition: all .2s ease;
+}
+
+.auth-tabs button.active {
+  background: #FFFFFF;
+  color: #0055B8;
+  box-shadow: 0 1px 4px rgba(7, 27, 73, .10);
+}
+
+.auth-tabs button:hover {
+  color: #0055B8;
+}
+
+.signup-role-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 17px;
+  padding: 12px;
+  background: #F3F8FF;
+  border: 1px solid #D4E5FA;
+  border-radius: 4px;
+  color: #0055B8;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.signup-role-note svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.signup-role-note span {
+  color: #53677F;
+}
+
+.login-field input:focus {
+  outline: none;
+  border-color: #007BFF;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, .10);
+}
+
+.login-submit:disabled {
+  opacity: .65;
+  cursor: not-allowed;
+}
+
+/* =====================================
+   USER MANAGEMENT STATUS MESSAGES
+===================================== */
+
+.security-success-message {
+  padding: 13px 16px;
+  margin-bottom: 16px;
+  border: 1px solid #B7E4CC;
+  border-radius: 5px;
+  background: #F0FAF4;
+  color: #167344;
+  font-size: 13px;
+}
+
+.security-error-message {
+  padding: 13px 16px;
+  margin-bottom: 16px;
+  border: 1px solid #F3C5C5;
+  border-radius: 5px;
+  background: #FFF4F4;
+  color: #B42318;
+  font-size: 13px;
+}
+
+.security-panel .data-table select {
+  min-width: 150px;
+  max-width: 190px;
+  padding: 8px 10px;
+  border: 1px solid #D5DFEB;
+  border-radius: 4px;
+  background: #FFFFFF;
+  color: #17365D;
+  font-size: 12px;
+}
+
+.security-panel .data-table select:disabled {
+  background: #F1F5F9;
+  color: #64748B;
+  cursor: not-allowed;
+}
+
+.security-panel .data-table button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+
+/* Administrator - Create User Form */
+
+.security-create-form {
+  margin: 20px 0;
+  padding: 24px;
+  border: 1px solid #dce5f1;
+  border-radius: 10px;
+  background: #f8faff;
+}
+
+.security-create-form h3 {
+  margin: 0 0 8px;
+  color: #102c52;
+  font-size: 18px;
+}
+
+.security-create-form > p {
+  margin-bottom: 20px;
+  color: #7587a2;
+  font-size: 13px;
+}
+
+.security-create-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.security-create-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #314b6d;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.security-create-grid input,
+.security-create-grid select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #d5dfed;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #102c52;
+  font: inherit;
+  font-weight: 400;
+}
+
+.security-create-grid input:focus,
+.security-create-grid select:focus {
+  outline: none;
+  border-color: #1261c9;
+  box-shadow: 0 0 0 3px rgba(18, 97, 201, 0.1);
+}
+
+.security-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.security-form-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.security-create-form > small {
+  display: block;
+  margin-top: 14px;
+  color: #71839d;
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .security-create-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* CENTRAL AUDIT ACTIVITY */
+
+.audit-panel {
+  margin-top: 22px;
+}
+
+.audit-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 22px 0;
+}
+
+.audit-summary-card {
+  padding: 17px;
+  border: 1px solid #e1e8f2;
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.audit-summary-card span {
+  display: block;
+  color: #71839d;
+  font-size: 12px;
+}
+
+.audit-summary-card strong {
+  display: block;
+  margin-top: 9px;
+  color: #102c52;
+  font-size: 25px;
+}
+
+.audit-summary-card .audit-success-text {
+  color: #27866a;
+}
+
+.audit-summary-card .audit-failure-text {
+  color: #c95757;
+}
+
+.audit-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 240px 180px;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.audit-filters input,
+.audit-filters select {
+  min-height: 43px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #dce5f1;
+  border-radius: 6px;
+  background: #fff;
+  color: #102c52;
+  font: inherit;
+}
+
+.audit-status {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.audit-status.success {
+  color: #237653;
+  background: #e7f5ed;
+}
+
+.audit-status.failure {
+  color: #b94343;
+  background: #fceaea;
+}
+
+.audit-footer {
+  padding-top: 14px;
+  color: #8291a7;
+  font-size: 12px;
+}
+
+.audit-json {
+  max-height: 180px;
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid #e0e7f0;
+  border-radius: 7px;
+  background: #f6f8fb;
+  color: #294461;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.audit-detail-drawer h3 {
+  margin-top: 24px;
+}
+
+@media (max-width: 900px) {
+  .audit-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .audit-filters {
+    grid-template-columns: 1fr;
+  }
+}

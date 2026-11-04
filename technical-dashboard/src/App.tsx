@@ -1,5 +1,6 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { useAuth } from "./auth/AuthContext";
 import ReactECharts from "echarts-for-react";
 import {
   Activity,
@@ -30,9 +31,11 @@ import {
   Zap,
   Layers3,
   Layers,
+  LogOut,
   X,
 } from "lucide-react";
 import "./index.css";
+import { api, type User, type AuditLog } from "./api/api";
 
 /* --------------------------------------------------
    NAVIGATION
@@ -111,6 +114,15 @@ const sectionDescriptions: Record<string, string> = {
 -------------------------------------------------- */
 
 function Header({ active }: { active: string }) {
+  const { user, logout } = useAuth();
+
+  const initials = user?.full_name
+    ?.split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "U";
+
   return (
     <header className="topbar">
       <div className="breadcrumb">
@@ -135,12 +147,19 @@ function Header({ active }: { active: string }) {
         </button>
 
         <div className="user-profile">
-          <div className="avatar">TE</div>
+          <div className="avatar">{initials}</div>
           <div className="user-info">
-            <strong>Technical Engineer</strong>
-            <span>Head Office</span>
+            <strong>{user?.full_name || "User"}</strong>
+            <span>{user?.role || "Viewer"}</span>
           </div>
-          <ChevronDown size={15} />
+          <button
+            className="logout-button"
+            onClick={logout}
+            title="Sign out"
+            aria-label="Sign out"
+          >
+            <LogOut size={17} />
+          </button>
         </div>
       </div>
     </header>
@@ -4962,6 +4981,8 @@ function ReportsAnalytics() {
     URL.revokeObjectURL(url);
   };
 
+  
+
   return (
     <>
       <div className="page-heading">
@@ -5076,129 +5097,810 @@ function ReportsAnalytics() {
   );
 }
 
-/* --------------------------------------------------
-   SECURITY & ADMINISTRATION
--------------------------------------------------- */
-function SecurityAdministration() {
-  const users = [
-    { id: "USR-001", name: "Technical Administrator", email: "admin@kone-demo.com", role: "Administrator", region: "All regions", status: "Active" },
-    { id: "USR-002", name: "Senior Technical Engineer", email: "engineer@kone-demo.com", role: "Technical Engineer", region: "Coimbatore", status: "Active" },
-    { id: "USR-003", name: "Regional Manager", email: "manager@kone-demo.com", role: "Regional Manager", region: "Chennai", status: "Active" },
-    { id: "USR-004", name: "Read-only Analyst", email: "analyst@kone-demo.com", role: "Viewer", region: "Bengaluru", status: "Inactive" },
+
+function AuditActivity() {
+  const { token } = useAuth();
+
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [search, setSearch] = useState("");
+  const [moduleFilter, setModuleFilter] = useState("All modules");
+  const [statusFilter, setStatusFilter] = useState("All statuses");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+
+  const modules = [
+    "Security & Administration",
+    "Executive Overview",
+    "Elevator Fleet Registry",
+    "Live Sensor Intelligence",
+    "Device & Hardware",
+    "AI Prediction & Diagnosis",
+    "Prediction Validation",
+    "Investigation Laboratory",
+    "Cross-Elevator Intelligence",
+    "Model Operations",
+    "Complaint & Compliance",
+    "Maintenance Engineering",
+    "Reports & Analytics",
   ];
 
-  const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("All roles");
-  const [showForm, setShowForm] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      `${user.name} ${user.email} ${user.id}`
-        .toLowerCase()
-        .includes(search.toLowerCase());
+    async function loadAuditLogs() {
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
-    const matchesRole =
-      roleFilter === "All roles" || user.role === roleFilter;
+      try {
+        setLoading(true);
+        setError("");
 
-    return matchesSearch && matchesRole;
-  });
+        const params = new URLSearchParams();
+        params.set("limit", "500");
+
+        if (moduleFilter !== "All modules") {
+          params.set("module", moduleFilter);
+        }
+
+        if (statusFilter !== "All statuses") {
+          params.set("status", statusFilter);
+        }
+
+        if (search.trim()) {
+          params.set("search", search.trim());
+        }
+
+        const data = await api.get<AuditLog[]>(
+          `/audit?${params.toString()}`,
+          token
+        );
+
+        if (!cancelled) {
+          setLogs(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load audit records."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadAuditLogs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, moduleFilter, statusFilter, search]);
+
+  const successCount = logs.filter(
+    (log) => log.status === "SUCCESS"
+  ).length;
+
+  const failureCount = logs.filter(
+    (log) => log.status === "FAILURE"
+  ).length;
+
+  const moduleCount = new Set(
+    logs.map((log) => log.module)
+  ).size;
+
+  const formatDate = (value: string) =>
+    new Date(value).toLocaleString();
+
+  const formatValues = (value: string | null) => {
+    if (!value) return "No recorded changes";
+
+    try {
+      return JSON.stringify(JSON.parse(value), null, 2);
+    } catch {
+      return value;
+    }
+  };
 
   return (
-    <div>
-      <div className="page-heading">
+    <section className="panel security-panel audit-panel">
+      <div className="panel-heading">
         <div>
-          <div className="eyebrow">SYSTEM MANAGEMENT / ACCESS CONTROL</div>
-          <h1>Security & Administration</h1>
-          <p>Manage dashboard users, permissions and security activity.</p>
+          <h2>Audit Activity</h2>
+          <p>
+            Centralized activity history across all dashboard modules.
+          </p>
         </div>
-        <button className="primary-button" onClick={() => setShowForm(!showForm)}>
-          + Add user
+
+        <button
+          className="secondary-button"
+          onClick={() => {
+            setSearch("");
+            setModuleFilter("All modules");
+            setStatusFilter("All statuses");
+          }}
+        >
+          Reset filters
         </button>
       </div>
 
-      <div className="info-banner">
-        <strong>Demonstration security environment</strong>
-        <p>Sample accounts and access activity are provided for interface testing. No real authentication or access changes are performed.</p>
+      {/* AUDIT SUMMARY */}
+      <div className="audit-summary-grid">
+        <div className="audit-summary-card">
+          <span>Events shown</span>
+          <strong>{logs.length}</strong>
+        </div>
+
+        <div className="audit-summary-card">
+          <span>Successful events</span>
+          <strong className="audit-success-text">
+            {successCount}
+          </strong>
+        </div>
+
+        <div className="audit-summary-card">
+          <span>Failed events</span>
+          <strong className="audit-failure-text">
+            {failureCount}
+          </strong>
+        </div>
+
+        <div className="audit-summary-card">
+          <span>Modules represented</span>
+          <strong>{moduleCount}</strong>
+        </div>
       </div>
 
+      {/* FILTERS */}
+      <div className="audit-filters">
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search user, action or record ID..."
+        />
+
+        <select
+          value={moduleFilter}
+          onChange={(event) => setModuleFilter(event.target.value)}
+        >
+          <option>All modules</option>
+          {modules.map((module) => (
+            <option key={module} value={module}>
+              {module}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+        >
+          <option>All statuses</option>
+          <option value="SUCCESS">Success</option>
+          <option value="FAILURE">Failure</option>
+        </select>
+      </div>
+
+      {error && (
+        <div className="security-error-message">
+          {error}
+        </div>
+      )}
+
+      {/* AUDIT TABLE */}
+      <div className="table-scroll">
+        <table className="data-table audit-table">
+          <thead>
+            <tr>
+              <th>EVENT ID</th>
+              <th>USER</th>
+              <th>MODULE</th>
+              <th>ACTION</th>
+              <th>STATUS</th>
+              <th>TIMESTAMP</th>
+              <th>DETAILS</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={7}>Loading audit activity...</td>
+              </tr>
+            ) : logs.length === 0 ? (
+              <tr>
+                <td colSpan={7}>
+                  No audit events match your filters.
+                </td>
+              </tr>
+            ) : (
+              logs.map((log) => (
+                <tr key={log.id}>
+                  <td>
+                    <strong>AUD-{String(log.id).padStart(4, "0")}</strong>
+                  </td>
+
+                  <td>
+                    <strong>{log.user_email || "Unknown user"}</strong>
+                    <small className="table-subtext">
+                      {log.user_role || "Role unavailable"}
+                    </small>
+                  </td>
+
+                  <td>{log.module}</td>
+
+                  <td>
+                    <strong>{log.action}</strong>
+                    <small className="table-subtext">
+                      {log.description}
+                    </small>
+                  </td>
+
+                  <td>
+                    <span
+                      className={`audit-status ${
+                        log.status === "SUCCESS"
+                          ? "success"
+                          : "failure"
+                      }`}
+                    >
+                      {log.status}
+                    </span>
+                  </td>
+
+                  <td>{formatDate(log.created_at)}</td>
+
+                  <td>
+                    <button
+                      className="secondary-button"
+                      onClick={() => setSelectedLog(log)}
+                    >
+                      View
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="audit-footer">
+        Showing up to 500 matching records. Newest events appear first.
+      </div>
+
+      {/* EVENT DETAILS */}
+      {selectedLog && (
+        <div
+          className="detail-overlay"
+          onClick={() => setSelectedLog(null)}
+        >
+          <section
+            className="detail-drawer audit-detail-drawer"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="detail-header">
+              <div>
+                <div className="eyebrow">AUDIT EVENT</div>
+                <h2>
+                  AUD-{String(selectedLog.id).padStart(4, "0")}
+                </h2>
+                <p>{selectedLog.action}</p>
+              </div>
+
+              <button
+                className="icon-button"
+                onClick={() => setSelectedLog(null)}
+              >
+                <X size={19} />
+              </button>
+            </div>
+
+            <div className="detail-grid">
+              <div>
+                <span>User</span>
+                <strong>{selectedLog.user_email || "Unknown"}</strong>
+              </div>
+
+              <div>
+                <span>Role</span>
+                <strong>{selectedLog.user_role || "Unavailable"}</strong>
+              </div>
+
+              <div>
+                <span>Module</span>
+                <strong>{selectedLog.module}</strong>
+              </div>
+
+              <div>
+                <span>Status</span>
+                <strong>{selectedLog.status}</strong>
+              </div>
+
+              <div>
+                <span>Entity type</span>
+                <strong>{selectedLog.entity_type || "—"}</strong>
+              </div>
+
+              <div>
+                <span>Entity ID</span>
+                <strong>{selectedLog.entity_id || "—"}</strong>
+              </div>
+
+              <div>
+                <span>IP address</span>
+                <strong>{selectedLog.ip_address || "Unavailable"}</strong>
+              </div>
+
+              <div>
+                <span>Timestamp</span>
+                <strong>{formatDate(selectedLog.created_at)}</strong>
+              </div>
+            </div>
+
+            <h3>Event description</h3>
+            <p>{selectedLog.description || "No description available."}</p>
+
+            <h3>Previous values</h3>
+            <pre className="audit-json">
+              {formatValues(selectedLog.old_values)}
+            </pre>
+
+            <h3>New values</h3>
+            <pre className="audit-json">
+              {formatValues(selectedLog.new_values)}
+            </pre>
+
+            <button
+              className="primary-button drawer-button"
+              onClick={() => setSelectedLog(null)}
+            >
+              Close details
+            </button>
+          </section>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* --------------------------------------------------
+   SECURITY & ADMINISTRATION
+-------------------------------------------------- */
+
+function SecurityAdministration() {
+  const { user, token } = useAuth();
+
+  const [users, setUsers] = useState<User[]>([]);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("All roles");
+  const [statusFilter, setStatusFilter] = useState("All statuses");
+
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [updatingUserId, setUpdatingUserId] = useState<number | null>(null);
+
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // Add-user form
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [newFullName, setNewFullName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<User["role"]>("Viewer");
+
+  const isAdmin = user?.role === "Administrator";
+
+  // LOAD USERS
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUsers() {
+      if (!token || !isAdmin) {
+        setLoadingUsers(false);
+        return;
+      }
+
+      try {
+        setError("");
+
+        const data = await api.get<User[]>("/auth/users", token);
+
+        if (!cancelled) {
+          setUsers(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : "Unable to load users."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingUsers(false);
+        }
+      }
+    }
+
+    loadUsers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, isAdmin]);
+
+  // UPDATE USER ROLE OR STATUS
+  const updateUser = async (
+    userId: number,
+    changes: {
+      role?: User["role"];
+      is_active?: boolean;
+    }
+  ) => {
+    if (!token) return;
+
+    try {
+      setUpdatingUserId(userId);
+      setError("");
+      setSuccess("");
+
+      const updatedUser = await api.patch<User>(
+        `/auth/users/${userId}`,
+        changes,
+        token
+      );
+
+      setUsers((previousUsers) =>
+        previousUsers.map((item) =>
+          item.id === userId ? updatedUser : item
+        )
+      );
+
+      setSuccess(
+        `${updatedUser.full_name}'s account was updated successfully.`
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to update user."
+      );
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
+  // CREATE NEW USER
+  const createUser = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!token) return;
+
+    setError("");
+    setSuccess("");
+
+    try {
+      setCreatingUser(true);
+
+      const createdUser = await api.post<User>(
+        "/auth/users",
+        {
+          full_name: newFullName.trim(),
+          email: newEmail.trim().toLowerCase(),
+          password: newPassword,
+          role: newRole,
+        },
+        token
+      );
+
+      setUsers((previousUsers) => [createdUser, ...previousUsers]);
+
+      setSuccess(
+        `Account for ${createdUser.full_name} was created successfully.`
+      );
+
+      setNewFullName("");
+      setNewEmail("");
+      setNewPassword("");
+      setNewRole("Viewer");
+      setShowCreateForm(false);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to create user."
+      );
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
+  // FILTER USERS
+  const filteredUsers = users.filter((item) => {
+    const searchText =
+      `${item.full_name} ${item.email} ${item.id}`.toLowerCase();
+
+    const matchesSearch = searchText.includes(search.toLowerCase());
+
+    const matchesRole =
+      roleFilter === "All roles" || item.role === roleFilter;
+
+    const matchesStatus =
+      statusFilter === "All statuses" ||
+      (statusFilter === "Active" && item.is_active) ||
+      (statusFilter === "Inactive" && !item.is_active);
+
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+  const activeUsers = users.filter((item) => item.is_active).length;
+  const inactiveUsers = users.length - activeUsers;
+
+  // ACCESS CONTROL
+  if (!isAdmin) {
+    return (
+      <div className="page-heading">
+        <div>
+          <div className="eyebrow">
+            SYSTEM MANAGEMENT / ACCESS CONTROL
+          </div>
+          <h1>Security & Administration</h1>
+          <p>
+            You do not have permission to manage user accounts.
+            Please contact your administrator.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* PAGE HEADING */}
+      <div className="page-heading">
+        <div>
+          <div className="eyebrow">
+            SYSTEM MANAGEMENT / ACCESS CONTROL
+          </div>
+          <h1>Security & Administration</h1>
+          <p>Manage registered users, roles and account access.</p>
+        </div>
+
+        <button
+          className="secondary-button"
+          onClick={() => window.location.reload()}
+        >
+          Refresh
+        </button>
+      </div>
+
+      {/* INFORMATION */}
+      <div className="info-banner">
+        <strong>Administrator access</strong>
+        <p>
+          User information is retrieved from the central PostgreSQL
+          database. Role and account changes are enforced by the
+          FastAPI backend.
+        </p>
+      </div>
+
+      {/* SUMMARY */}
       <div className="reports-summary-grid">
         <div className="reports-metric-card">
           <span>Registered users</span>
-          <strong>24</strong>
-          <small>Demonstration accounts</small>
+          <strong>{users.length}</strong>
+          <small>Total accounts</small>
         </div>
+
         <div className="reports-metric-card">
           <span>Active users</span>
-          <strong>21</strong>
-          <small>Sample account status</small>
+          <strong>{activeUsers}</strong>
+          <small>Accounts with access</small>
         </div>
+
+        <div className="reports-metric-card">
+          <span>Inactive users</span>
+          <strong>{inactiveUsers}</strong>
+          <small>Disabled accounts</small>
+        </div>
+
         <div className="reports-metric-card">
           <span>Access roles</span>
           <strong>4</strong>
           <small>Defined permission groups</small>
         </div>
-        <div className="reports-metric-card">
-          <span>Security events</span>
-          <strong>12</strong>
-          <small>Recorded demo events</small>
-        </div>
       </div>
 
-      {showForm && (
-        <section className="panel security-panel" style={{ padding: 20, marginBottom: 16 }}>
-          <h2>Add demonstration user</h2>
-          <p>This form is an interface preview. It does not create a real account.</p>
-          <div className="security-form-grid">
-            <input placeholder="Full name" />
-            <input placeholder="Email address" type="email" />
-            <select defaultValue="Technical Engineer">
-              <option>Technical Engineer</option>
-              <option>Administrator</option>
-              <option>Regional Manager</option>
-              <option>Viewer</option>
-            </select>
-            <select defaultValue="Coimbatore">
-              <option>Coimbatore</option>
-              <option>Chennai</option>
-              <option>Bengaluru</option>
-              <option>All regions</option>
-            </select>
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 15 }}>
-            <button className="primary-button" onClick={() => setShowForm(false)}>Close preview</button>
-            <button className="secondary-button" onClick={() => setShowForm(false)}>Cancel</button>
-          </div>
-        </section>
+      {/* SUCCESS */}
+      {success && (
+        <div className="security-success-message">{success}</div>
       )}
 
+      {/* ERROR */}
+      {error && (
+        <div className="security-error-message">{error}</div>
+      )}
+
+      {/* USER REGISTER */}
       <section className="panel security-panel">
         <div className="panel-heading">
           <div>
-            <h2>User access register</h2>
-            <p>Review demonstration accounts and assigned permissions.</p>
+            <h2>User Access Register</h2>
+            <p>Review registered accounts and manage their permissions.</p>
           </div>
-          <span className="record-count">{filteredUsers.length} users shown</span>
+
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <span className="record-count">
+              {filteredUsers.length} users shown
+            </span>
+
+            <button
+              className="primary-button"
+              onClick={() => {
+                setShowCreateForm((previous) => !previous);
+                setError("");
+                setSuccess("");
+              }}
+            >
+              {showCreateForm ? "Close Form" : "+ Add User"}
+            </button>
+          </div>
         </div>
 
+        {/* CREATE USER FORM */}
+        {showCreateForm && (
+          <form
+            onSubmit={createUser}
+            className="security-create-form"
+          >
+            <h3>Create New User</h3>
+            <p>
+              Create an account and assign its initial access role.
+            </p>
+
+            <div className="security-create-grid">
+              <label>
+                Full name
+                <input
+                  type="text"
+                  value={newFullName}
+                  onChange={(event) =>
+                    setNewFullName(event.target.value)
+                  }
+                  placeholder="Enter full name"
+                  minLength={2}
+                  maxLength={150}
+                  required
+                />
+              </label>
+
+              <label>
+                Email address
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(event) =>
+                    setNewEmail(event.target.value)
+                  }
+                  placeholder="Enter email address"
+                  maxLength={255}
+                  required
+                />
+              </label>
+
+              <label>
+                Initial password
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) =>
+                    setNewPassword(event.target.value)
+                  }
+                  placeholder="Minimum 8 characters"
+                  minLength={8}
+                  maxLength={72}
+                  required
+                />
+              </label>
+
+              <label>
+                Assign role
+                <select
+                  value={newRole}
+                  onChange={(event) =>
+                    setNewRole(event.target.value as User["role"])
+                  }
+                >
+                  <option value="Viewer">Viewer</option>
+                  <option value="Technical Engineer">
+                    Technical Engineer
+                  </option>
+                  <option value="Regional Manager">
+                    Regional Manager
+                  </option>
+                  <option value="Administrator">
+                    Administrator
+                  </option>
+                </select>
+              </label>
+            </div>
+
+            <div className="security-form-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={creatingUser}
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setNewFullName("");
+                  setNewEmail("");
+                  setNewPassword("");
+                  setNewRole("Viewer");
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={creatingUser}
+              >
+                {creatingUser ? "Creating..." : "Create Account"}
+              </button>
+            </div>
+
+            <small>
+              New accounts are created as active accounts. Passwords
+              are securely hashed by the backend.
+            </small>
+          </form>
+        )}
+
+        {/* SEARCH AND FILTERS */}
         <div className="security-filters">
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by name, email or user ID..."
           />
-          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+
+          <select
+            value={roleFilter}
+            onChange={(event) => setRoleFilter(event.target.value)}
+          >
             <option>All roles</option>
             <option>Administrator</option>
             <option>Technical Engineer</option>
             <option>Regional Manager</option>
             <option>Viewer</option>
           </select>
-          <button className="secondary-button" onClick={() => {
-            setSearch("");
-            setRoleFilter("All roles");
-          }}>Reset</button>
+
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+          >
+            <option>All statuses</option>
+            <option>Active</option>
+            <option>Inactive</option>
+          </select>
+
+          <button
+            className="secondary-button"
+            onClick={() => {
+              setSearch("");
+              setRoleFilter("All roles");
+              setStatusFilter("All statuses");
+            }}
+          >
+            Reset
+          </button>
         </div>
 
+        {/* USER TABLE */}
         <div className="table-scroll">
           <table className="data-table">
             <thead>
@@ -5206,48 +5908,131 @@ function SecurityAdministration() {
                 <th>USER ID</th>
                 <th>USER</th>
                 <th>ROLE</th>
-                <th>REGION ACCESS</th>
-                <th>STATUS</th>
+                <th>ACCOUNT STATUS</th>
+                <th>CREATED</th>
+                <th>ACTIONS</th>
               </tr>
             </thead>
+
             <tbody>
-              {filteredUsers.map((user) => (
-                <tr key={user.id}>
-                  <td><strong>{user.id}</strong></td>
-                  <td>
-                    <strong>{user.name}</strong>
-                    <small className="table-subtext">{user.email}</small>
-                  </td>
-                  <td>{user.role}</td>
-                  <td>{user.region}</td>
-                  <td>
-                    <span className={`status-pill ${user.status === "Active" ? "status-normal" : "status-offline"}`}>
-                      {user.status}
-                    </span>
-                  </td>
+              {loadingUsers ? (
+                <tr>
+                  <td colSpan={6}>Loading registered users...</td>
                 </tr>
-              ))}
-              {filteredUsers.length === 0 && (
-                <tr><td colSpan={5}>No matching users found.</td></tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={6}>No matching users found.</td>
+                </tr>
+              ) : (
+                filteredUsers.map((item) => {
+                  const isCurrentUser = item.id === user?.id;
+                  const isUpdating = updatingUserId === item.id;
+
+                  return (
+                    <tr key={item.id}>
+                      <td>
+                        <strong>
+                          USR-{String(item.id).padStart(3, "0")}
+                        </strong>
+                      </td>
+
+                      <td>
+                        <strong>{item.full_name}</strong>
+                        <small className="table-subtext">
+                          {item.email}
+                        </small>
+                      </td>
+
+                      <td>
+                        <select
+                          value={item.role}
+                          disabled={isCurrentUser || isUpdating}
+                          onChange={(event) =>
+                            updateUser(item.id, {
+                              role: event.target.value as User["role"],
+                            })
+                          }
+                        >
+                          <option value="Viewer">Viewer</option>
+                          <option value="Technical Engineer">
+                            Technical Engineer
+                          </option>
+                          <option value="Regional Manager">
+                            Regional Manager
+                          </option>
+                          <option value="Administrator">
+                            Administrator
+                          </option>
+                        </select>
+                      </td>
+
+                      <td>
+                        <span
+                          className={`status-pill ${
+                            item.is_active
+                              ? "status-normal"
+                              : "status-offline"
+                          }`}
+                        >
+                          {item.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+
+                      <td>
+                        {new Date(item.created_at).toLocaleDateString()}
+                      </td>
+
+                      <td>
+                        <button
+                          className="secondary-button"
+                          disabled={isCurrentUser || isUpdating}
+                          onClick={() =>
+                            updateUser(item.id, {
+                              is_active: !item.is_active,
+                            })
+                          }
+                        >
+                          {isUpdating
+                            ? "Updating..."
+                            : item.is_active
+                              ? "Deactivate"
+                              : "Activate"}
+                        </button>
+
+                        {isCurrentUser && (
+                          <small className="table-subtext">
+                            Current account
+                          </small>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </section>
+      <AuditActivity />
 
+      {/* LOWER INFORMATION PANELS */}
       <div className="security-lower-grid">
         <section className="panel security-panel">
           <h2>Role permissions</h2>
-          <p>Illustrative access policy for dashboard roles.</p>
+          <p>Available permission groups.</p>
+
           <div className="permission-list">
             {[
               ["Administrator", "Full system administration"],
               ["Technical Engineer", "Fleet, sensors and investigations"],
-              ["Regional Manager", "Regional fleet and reports"],
+              ["Regional Manager", "Regional fleet and complaints"],
               ["Viewer", "Read-only dashboard access"],
             ].map(([role, description]) => (
               <div className="permission-row" key={role}>
-                <div><strong>{role}</strong><small>{description}</small></div>
+                <div>
+                  <strong>{role}</strong>
+                  <small>{description}</small>
+                </div>
                 <span className="permission-label">Defined</span>
               </div>
             ))}
@@ -5255,22 +6040,302 @@ function SecurityAdministration() {
         </section>
 
         <section className="panel security-panel">
-          <h2>Recent security activity</h2>
-          <p>Sample audit events from the demonstration environment.</p>
+          <h2>Account management</h2>
+          <p>Important account management rules.</p>
+
           <div className="permission-list">
-            {[
-              ["User login", "Technical Administrator", "03 Nov 2026 · 09:42"],
-              ["Prediction reviewed", "Senior Technical Engineer", "03 Nov 2026 · 09:18"],
-              ["Complaint updated", "Regional Manager", "03 Nov 2026 · 08:56"],
-              ["Report generated", "Read-only Analyst", "02 Nov 2026 · 16:30"],
-            ].map(([event, actor, time]) => (
-              <div className="permission-row" key={event}>
-                <div><strong>{event}</strong><small>{actor} · {time}</small></div>
-                <span className="permission-label">Logged</span>
+            <div className="permission-row">
+              <div>
+                <strong>Public registration</strong>
+                <small>New public accounts receive Viewer access.</small>
               </div>
-            ))}
+              <span className="permission-label">Enabled</span>
+            </div>
+
+            <div className="permission-row">
+              <div>
+                <strong>Administrator user creation</strong>
+                <small>Administrators can create accounts with assigned roles.</small>
+              </div>
+              <span className="permission-label">Enabled</span>
+            </div>
+
+            <div className="permission-row">
+              <div>
+                <strong>Role changes</strong>
+                <small>Restricted to administrators.</small>
+              </div>
+              <span className="permission-label">Protected</span>
+            </div>
+
+            <div className="permission-row">
+              <div>
+                <strong>Account activation</strong>
+                <small>Administrators control account status.</small>
+              </div>
+              <span className="permission-label">Protected</span>
+            </div>
           </div>
         </section>
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------------------------
+   KONE LOGIN SCREEN
+-------------------------------------------------- */
+
+function LoginScreen() {
+  const { login, register } = useAuth();
+
+  const [mode, setMode] = useState<"login" | "register">("login");
+
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+
+    setError("");
+    setSubmitting(true);
+
+    try {
+      if (mode === "register") {
+        if (password !== confirmPassword) {
+          throw new Error("Passwords do not match.");
+        }
+
+        if (password.length < 8) {
+          throw new Error(
+            "Password must contain at least 8 characters."
+          );
+        }
+
+        await register({
+          full_name: fullName.trim(),
+          email: email.trim().toLowerCase(),
+          password,
+        });
+
+      } else {
+        await login(
+          email.trim().toLowerCase(),
+          password
+        );
+      }
+
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again."
+      );
+
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const switchMode = (nextMode: "login" | "register") => {
+    setMode(nextMode);
+    setError("");
+    setPassword("");
+    setConfirmPassword("");
+  };
+
+  return (
+    <div className="kone-login-page">
+
+      <div className="login-brand">
+        <div className="login-brand-mark">K</div>
+
+        <div>
+          <strong>KONE</strong>
+          <span>TECHNICAL INTELLIGENCE</span>
+        </div>
+      </div>
+
+      <div className="login-content">
+
+        <div className="login-card">
+
+          <div className="login-eyebrow">
+            TECHNICAL OPERATIONS PLATFORM
+          </div>
+
+          <div className="auth-tabs">
+            <button
+              type="button"
+              className={mode === "login" ? "active" : ""}
+              onClick={() => switchMode("login")}
+            >
+              Sign In
+            </button>
+
+            <button
+              type="button"
+              className={mode === "register" ? "active" : ""}
+              onClick={() => switchMode("register")}
+            >
+              Sign Up
+            </button>
+          </div>
+
+          <h1>
+            {mode === "login"
+              ? "Welcome back"
+              : "Create your account"}
+          </h1>
+
+          <p className="login-description">
+            {mode === "login"
+              ? "Sign in to access the KONE Technical Intelligence dashboard."
+              : "Register to access the KONE Technical Intelligence platform."}
+          </p>
+
+          <form onSubmit={handleSubmit}>
+
+            {mode === "register" && (
+              <div className="login-field">
+                <label htmlFor="register-name">
+                  Full name
+                </label>
+
+                <input
+                  id="register-name"
+                  type="text"
+                  value={fullName}
+                  onChange={(event) =>
+                    setFullName(event.target.value)
+                  }
+                  placeholder="Enter your full name"
+                  autoComplete="name"
+                  minLength={2}
+                  maxLength={150}
+                  required
+                />
+              </div>
+            )}
+
+            <div className="login-field">
+              <label htmlFor="login-email">
+                Email address
+              </label>
+
+              <input
+                id="login-email"
+                type="email"
+                value={email}
+                onChange={(event) =>
+                  setEmail(event.target.value)
+                }
+                placeholder="Enter your email address"
+                autoComplete="email"
+                required
+              />
+            </div>
+
+            <div className="login-field">
+              <label htmlFor="login-password">
+                Password
+              </label>
+
+              <input
+                id="login-password"
+                type="password"
+                value={password}
+                onChange={(event) =>
+                  setPassword(event.target.value)
+                }
+                placeholder={
+                  mode === "register"
+                    ? "Create a password (minimum 8 characters)"
+                    : "Enter your password"
+                }
+                autoComplete={
+                  mode === "register"
+                    ? "new-password"
+                    : "current-password"
+                }
+                minLength={mode === "register" ? 8 : undefined}
+                maxLength={72}
+                required
+              />
+            </div>
+
+            {mode === "register" && (
+              <div className="login-field">
+                <label htmlFor="confirm-password">
+                  Confirm password
+                </label>
+
+                <input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) =>
+                    setConfirmPassword(event.target.value)
+                  }
+                  placeholder="Re-enter your password"
+                  autoComplete="new-password"
+                  maxLength={72}
+                  required
+                />
+              </div>
+            )}
+
+            {error && (
+              <div className="login-error" role="alert">
+                <AlertTriangle size={16} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <button
+              className="login-submit"
+              type="submit"
+              disabled={submitting}
+            >
+              {submitting
+                ? "Please wait..."
+                : mode === "login"
+                  ? "Sign in to dashboard"
+                  : "Create account"}
+            </button>
+
+          </form>
+
+          {mode === "register" && (
+            <div className="signup-role-note">
+              <ShieldCheck size={16} />
+              <span>
+                New accounts receive Viewer access.
+                Your permissions can be updated by an administrator.
+              </span>
+            </div>
+          )}
+
+          <div className="login-security">
+            <ShieldCheck size={16} />
+            <span>
+              Secure access · Role-based authentication
+            </span>
+          </div>
+
+        </div>
+
+        <p className="login-footer">
+          © KONE Technical Intelligence · Development prototype
+        </p>
+
       </div>
     </div>
   );
@@ -5281,6 +6346,8 @@ function SecurityAdministration() {
 -------------------------------------------------- */
 
 export default function App() {
+  const { user, loading } = useAuth();
+
   const [active, setActive] = useState(() => {
   return localStorage.getItem("kone-active-page") || "Executive Overview";
   });
@@ -5289,6 +6356,19 @@ export default function App() {
   }, [active]);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="auth-loading">
+        <div className="auth-spinner" />
+        <span>Verifying your session...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginScreen />;
+  }
 
   return (
     <div className={`app-shell ${collapsed ? "sidebar-collapsed" : ""}`}>
