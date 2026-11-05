@@ -36,6 +36,8 @@ import {
 } from "lucide-react";
 import "./index.css";
 import { api, type User, type AuditLog } from "./api/api";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 /* --------------------------------------------------
    NAVIGATION
@@ -4982,6 +4984,127 @@ function ReportsAnalytics() {
   };
 
   
+  const exportPDF = () => {
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+    });
+
+    // Document heading
+    doc.setFillColor(0, 82, 147);
+    doc.rect(0, 0, 297, 35, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.text("KONE", 15, 15);
+
+    doc.setFontSize(13);
+    doc.text("Technical Intelligence Platform", 15, 24);
+
+    doc.setFontSize(17);
+    doc.text("Reports & Analytics", 282, 18, {
+      align: "right",
+    });
+
+    // Report information
+    doc.setTextColor(45, 55, 72);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+
+    doc.text(
+      `Generated on: ${new Date().toLocaleString()}`,
+      15,
+      45
+    );
+
+    doc.text(`Region: ${region}`, 15, 52);
+    doc.text(`Category: ${category}`, 110, 52);
+    doc.text(`Total reports: ${filteredReports.length}`, 220, 52);
+
+    // Demonstration data notice
+    doc.setFillColor(240, 246, 252);
+    doc.roundedRect(15, 60, 267, 14, 2, 2, "F");
+
+    doc.setTextColor(30, 75, 115);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("DEMONSTRATION ANALYTICS", 20, 66);
+
+    doc.setFont("helvetica", "normal");
+    doc.text(
+      "All records in this report are sample data, not production measurements.",
+      20,
+      70
+    );
+
+    // Report table
+    autoTable(doc, {
+      startY: 83,
+      head: [[
+        "Report ID",
+        "Report Name",
+        "Category",
+        "Region",
+        "Generated",
+        "Status",
+      ]],
+      body: filteredReports.map((report) => [
+        report.id,
+        report.name,
+        report.category,
+        report.region,
+        report.date,
+        "Ready",
+      ]),
+      theme: "grid",
+      headStyles: {
+        fillColor: [0, 82, 147],
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+      },
+      styles: {
+        fontSize: 9,
+        cellPadding: 4,
+        textColor: [45, 55, 72],
+      },
+      alternateRowStyles: {
+        fillColor: [243, 247, 251],
+      },
+      margin: {
+        left: 15,
+        right: 15,
+      },
+    });
+
+    // Footer on every page
+    const pageCount = doc.getNumberOfPages();
+
+    for (let page = 1; page <= pageCount; page++) {
+      doc.setPage(page);
+
+      doc.setFontSize(8);
+      doc.setTextColor(120, 130, 140);
+
+      doc.text(
+        "KONE Technical Intelligence Platform | Demonstration Report",
+        15,
+        200
+      );
+
+      doc.text(
+        `Page ${page} of ${pageCount}`,
+        282,
+        200,
+        { align: "right" }
+      );
+    }
+
+    // Download
+    doc.save("KONE-Technical-Reports.pdf");
+  };
+
 
   return (
     <>
@@ -4991,9 +5114,21 @@ function ReportsAnalytics() {
           <h1>Reports & Analytics</h1>
           <p>Review fleet performance, incident trends and maintenance activity.</p>
         </div>
-        <button className="primary-button" onClick={exportReports}>
-          Export CSV
-        </button>
+        <div className="reports-export-actions">
+  <button
+    className="secondary-button"
+    onClick={exportReports}
+  >
+    Export CSV
+  </button>
+
+  <button
+    className="primary-button"
+    onClick={exportPDF}
+  >
+    Download PDF
+  </button>
+</div>
       </div>
 
       <div className="notice-bar">
@@ -5088,9 +5223,14 @@ function ReportsAnalytics() {
 
         <div className="reports-register-footer">
           <span>Sample report records · {filteredReports.length} displayed</span>
-          <button className="primary-button" onClick={exportReports}>
-            Export filtered CSV
-          </button>
+          <div className="reports-export-actions">
+            <button className="secondary-button" onClick={exportReports}>
+              Export filtered CSV
+            </button>
+            <button className="primary-button" onClick={exportPDF}>
+              Download PDF
+            </button>
+          </div>
         </div>
       </section>
     </>

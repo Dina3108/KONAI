@@ -4790,3 +4790,24 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 }
+
+.reports-export-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.reports-export-actions button {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .reports-export-actions {
+    width: 100%;
+  }
+
+  .reports-export-actions button {
+    flex: 1;
+  }
+}
